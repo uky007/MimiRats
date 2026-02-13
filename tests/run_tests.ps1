@@ -6,7 +6,7 @@
 # Run WITH admin     -> basic + crypto + privilege + service + credential tests
 
 $ErrorActionPreference = "Continue"
-$Binary = "$PSScriptRoot\..\target\x86_64-pc-windows-msvc\debug\MimiRats.exe"
+$Binary = "$PSScriptRoot\..\target\x86_64-pc-windows-gnu\debug\MimiRats.exe"
 $ResultFile = "$PSScriptRoot\test_results.txt"
 
 # ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ if (-not (Test-Path $Binary)) {
     "ERROR: Binary not found at $Binary" | Tee-Object -FilePath $ResultFile -Append
     "Try: cargo build" | Tee-Object -FilePath $ResultFile -Append
     # Also check release path
-    $RelBinary = "$PSScriptRoot\..\target\x86_64-pc-windows-msvc\release\MimiRats.exe"
+    $RelBinary = "$PSScriptRoot\..\target\x86_64-pc-windows-gnu\release\MimiRats.exe"
     if (Test-Path $RelBinary) {
         "Found release binary at: $RelBinary" | Tee-Object -FilePath $ResultFile -Append
         $Binary = $RelBinary

@@ -4,8 +4,6 @@
 //! via `NtEnumerateSystemEnvironmentValuesEx` and related NT APIs.
 
 use crate::module::{Command, Module, Status};
-#[cfg(windows)]
-use crate::display::find_named_arg;
 
 pub static MODULE: Module = Module {
     short_name: "sysenv",
@@ -45,11 +43,12 @@ static COMMANDS: [Command; 4] = [
 
 #[cfg(windows)]
 mod win {
-    use windows::Win32::Foundation::*;
     use windows::Win32::System::LibraryLoader::*;
     use windows::core::*;
     use crate::module::Status;
     use crate::display::find_named_arg;
+
+    const STATUS_BUFFER_TOO_SMALL: i32 = 0xC0000023_u32 as i32;
 
     /// Helper: encode a Rust &str to a null-terminated wide string.
     fn to_wide(s: &str) -> Vec<u16> {
@@ -157,7 +156,7 @@ mod win {
             let mut size: u32 = 0;
             let status = func(1, std::ptr::null_mut(), &mut size);
             // STATUS_BUFFER_TOO_SMALL = 0xC0000023
-            if status != -0x3FFFFFFDI32 && status < 0 {
+            if status != STATUS_BUFFER_TOO_SMALL && status < 0 {
                 eprintln!("ERROR: NtEnumerateSystemEnvironmentValuesEx(size): NTSTATUS 0x{:08x}", status as u32);
                 return Status::Unsuccessful;
             }
@@ -264,7 +263,7 @@ mod win {
             let mut size: u32 = 0;
             let mut attributes: u32 = 0;
             let status = func(&us_name, &guid, std::ptr::null_mut(), &mut size, &mut attributes);
-            if status != -0x3FFFFFFDI32 && status < 0 {
+            if status != STATUS_BUFFER_TOO_SMALL && status < 0 {
                 eprintln!("ERROR: NtQuerySystemEnvironmentValueEx(size): NTSTATUS 0x{:08x}", status as u32);
                 return Status::Unsuccessful;
             }

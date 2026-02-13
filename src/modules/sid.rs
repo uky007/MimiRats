@@ -222,19 +222,18 @@ fn cmd_lookup(args: &[String]) -> Status {
 
 #[cfg(windows)]
 fn sid_name_use_str(t: windows::Win32::Security::SID_NAME_USE) -> &'static str {
-    use windows::Win32::Security::*;
-    match t {
-        SidTypeUser => "User",
-        SidTypeGroup => "Group",
-        SidTypeDomain => "Domain",
-        SidTypeAlias => "Alias",
-        SidTypeWellKnownGroup => "WellKnownGroup",
-        SidTypeDeletedAccount => "DeletedAccount",
-        SidTypeInvalid => "Invalid",
-        SidTypeUnknown => "Unknown",
-        SidTypeComputer => "Computer",
-        SidTypeLabel => "Label",
-        SidTypeLogonSession => "LogonSession",
+    match t.0 {
+        1 => "User",
+        2 => "Group",
+        3 => "Domain",
+        4 => "Alias",
+        5 => "WellKnownGroup",
+        6 => "DeletedAccount",
+        7 => "Invalid",
+        8 => "Unknown",
+        9 => "Computer",
+        10 => "Label",
+        11 => "LogonSession",
         _ => "(?)",
     }
 }

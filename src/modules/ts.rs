@@ -39,7 +39,6 @@ fn cmd_sessions(args: &[String]) -> Status {
 
     #[cfg(windows)]
     {
-        use windows::Win32::Foundation::*;
         use windows::Win32::System::LibraryLoader::*;
         use windows::core::PCWSTR;
 
@@ -247,7 +246,7 @@ fn cmd_remote(args: &[String]) -> Status {
 
         // Use the same registry helper pattern as misc module
         use windows::Win32::System::Registry::*;
-        use windows::Win32::Foundation::*;
+        use windows::Win32::Foundation::ERROR_SUCCESS;
         use windows::core::PCWSTR;
 
         let subkey = "System\\CurrentControlSet\\Control\\Terminal Server";
@@ -257,20 +256,21 @@ fn cmd_remote(args: &[String]) -> Status {
 
         unsafe {
             let mut key = HKEY::default();
-            if let Err(e) = RegOpenKeyExW(
+            let status = RegOpenKeyExW(
                 HKEY_LOCAL_MACHINE,
                 PCWSTR(subkey_wide.as_ptr()),
                 0,
                 KEY_WRITE,
                 &mut key,
-            ) {
-                eprintln!("ERROR: RegOpenKeyExW: {}", e);
+            );
+            if status != ERROR_SUCCESS {
+                eprintln!("ERROR: RegOpenKeyExW: {:?}", status);
                 eprintln!("  (Requires elevation / administrator privileges)");
                 return Status::Unsuccessful;
             }
 
             let data_bytes = value.to_le_bytes();
-            let result = RegSetValueExW(
+            let status = RegSetValueExW(
                 key,
                 PCWSTR(value_wide.as_ptr()),
                 0,
@@ -280,15 +280,12 @@ fn cmd_remote(args: &[String]) -> Status {
 
             let _ = RegCloseKey(key);
 
-            match result {
-                Ok(()) => {
-                    println!("  Done. Remote Desktop is now {}.", if enable { "enabled" } else { "disabled" });
-                    return Status::Success;
-                }
-                Err(e) => {
-                    eprintln!("ERROR: RegSetValueExW: {}", e);
-                    return Status::Unsuccessful;
-                }
+            if status == ERROR_SUCCESS {
+                println!("  Done. Remote Desktop is now {}.", if enable { "enabled" } else { "disabled" });
+                return Status::Success;
+            } else {
+                eprintln!("ERROR: RegSetValueExW: {:?}", status);
+                return Status::Unsuccessful;
             }
         }
     }

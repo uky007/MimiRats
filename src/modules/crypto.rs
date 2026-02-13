@@ -122,7 +122,7 @@ fn cmd_hash(args: &[String]) -> Status {
 fn cmd_providers(_args: &[String]) -> Status {
     use windows::Win32::Security::Cryptography::*;
     use windows::Win32::Foundation::*;
-    use windows::core::*;
+    use windows::core::PWSTR;
 
     println!("\nCryptoAPI providers:");
 
@@ -195,7 +195,7 @@ fn cmd_providers(_args: &[String]) -> Status {
 #[cfg(windows)]
 fn cmd_stores(args: &[String]) -> Status {
     use windows::Win32::Security::Cryptography::*;
-    use windows::core::*;
+    use windows::Win32::Foundation::BOOL;
 
     let system_store = display::find_named_arg(args, "systemstore").unwrap_or("user");
 
@@ -214,9 +214,9 @@ fn cmd_stores(args: &[String]) -> Status {
     // CertEnumSystemStore uses a callback. We'll collect results via a boxed closure.
     unsafe extern "system" fn enum_callback(
         _pv_system_store: *const core::ffi::c_void,
-        _dw_flags: u32,
-        _p_store_info: *mut CERT_SYSTEM_STORE_INFO,
-        _pv_reserved: *mut core::ffi::c_void,
+        _dw_flags: CERT_SYSTEM_STORE_FLAGS,
+        _p_store_info: *const CERT_SYSTEM_STORE_INFO,
+        _pv_reserved: *const core::ffi::c_void,
         _pv_arg: *mut core::ffi::c_void,
     ) -> BOOL {
         // The first parameter is a PCWSTR to the store name
@@ -263,7 +263,6 @@ fn cmd_stores(_args: &[String]) -> Status {
 #[cfg(windows)]
 fn cmd_certificates(args: &[String]) -> Status {
     use windows::Win32::Security::Cryptography::*;
-    use windows::core::*;
 
     let store_name = display::find_named_arg(args, "store").unwrap_or("My");
     let system_store = display::find_named_arg(args, "systemstore").unwrap_or("user");

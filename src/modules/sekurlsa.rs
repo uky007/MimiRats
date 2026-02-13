@@ -301,7 +301,7 @@ fn acquire_from_live_process(args: &[String], package: SecurityPackage) -> Statu
 
     // Step 3: Open LSASS process
     println!("\nOpening LSASS process...");
-    let process = match ProcessMemory::open(pid) {
+    let _process = match ProcessMemory::open(pid) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("ERROR: {}", e);

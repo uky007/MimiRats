@@ -10,44 +10,46 @@
 #[cfg(windows)]
 pub mod api {
     use windows::Win32::System::Registry::*;
-    use windows::Win32::Foundation::*;
-    use windows::core::*;
+    use windows::Win32::Foundation::WIN32_ERROR;
+    use windows::core::{PCWSTR, PWSTR};
 
     /// Open a registry subkey under `hkey` with `KEY_READ` access.
-    pub fn reg_open_key(hkey: HKEY, subkey: &str) -> Result<HKEY, String> {
+    pub fn reg_open_key(hkey: HKEY, subkey: &str) -> std::result::Result<HKEY, String> {
         let wide: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
         let mut result_key = HKEY::default();
         unsafe {
-            RegOpenKeyExW(
+            let status = RegOpenKeyExW(
                 hkey,
                 PCWSTR(wide.as_ptr()),
                 0,
                 KEY_READ,
                 &mut result_key,
-            )
-            .map_err(|e| format!("RegOpenKeyExW({}): {}", subkey, e))?;
+            );
+            if status != WIN32_ERROR(0) {
+                return Err(format!("RegOpenKeyExW({}): {:?}", subkey, status));
+            }
         }
         Ok(result_key)
     }
 
     /// Query a named value under `hkey`, returning the raw byte data.
-    pub fn reg_query_value(hkey: HKEY, name: &str) -> Result<Vec<u8>, String> {
+    pub fn reg_query_value(hkey: HKEY, name: &str) -> std::result::Result<Vec<u8>, String> {
         let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
 
         // First call: determine required buffer size.
         let mut data_size: u32 = 0;
-        let mut data_type: u32 = 0;
+        let mut data_type = REG_VALUE_TYPE(0);
         unsafe {
             let status = RegQueryValueExW(
                 hkey,
                 PCWSTR(wide.as_ptr()),
                 None,
-                Some(&mut data_type),
+                Some(&mut data_type as *mut REG_VALUE_TYPE),
                 None,
                 Some(&mut data_size),
             );
-            if status.is_err() {
-                return Err(format!("RegQueryValueExW(size, {}): {}", name, status.0));
+            if status != WIN32_ERROR(0) {
+                return Err(format!("RegQueryValueExW(size, {}): {:?}", name, status));
             }
         }
 
@@ -62,12 +64,12 @@ pub mod api {
                 hkey,
                 PCWSTR(wide.as_ptr()),
                 None,
-                Some(&mut data_type),
+                Some(&mut data_type as *mut REG_VALUE_TYPE),
                 Some(buf.as_mut_ptr()),
                 Some(&mut data_size),
             );
-            if status.is_err() {
-                return Err(format!("RegQueryValueExW(data, {}): {}", name, status.0));
+            if status != WIN32_ERROR(0) {
+                return Err(format!("RegQueryValueExW(data, {}): {:?}", name, status));
             }
         }
         buf.truncate(data_size as usize);
@@ -75,7 +77,7 @@ pub mod api {
     }
 
     /// Enumerate all subkey names under `hkey`.
-    pub fn reg_enum_keys(hkey: HKEY) -> Result<Vec<String>, String> {
+    pub fn reg_enum_keys(hkey: HKEY) -> std::result::Result<Vec<String>, String> {
         let mut keys = Vec::new();
         let mut index: u32 = 0;
         loop {
@@ -92,11 +94,11 @@ pub mod api {
                     None,
                     None,
                 );
-                if status == Err(WIN32_ERROR(259).into()) {
+                if status == WIN32_ERROR(259) {
                     // ERROR_NO_MORE_ITEMS
                     break;
                 }
-                if status.is_err() {
+                if status != WIN32_ERROR(0) {
                     return Err(format!("RegEnumKeyExW({}): {:?}", index, status));
                 }
             }
@@ -108,7 +110,7 @@ pub mod api {
     }
 
     /// Enumerate all values under `hkey`, returning `(name, type, data)` tuples.
-    pub fn reg_enum_values(hkey: HKEY) -> Result<Vec<(String, u32, Vec<u8>)>, String> {
+    pub fn reg_enum_values(hkey: HKEY) -> std::result::Result<Vec<(String, u32, Vec<u8>)>, String> {
         let mut values = Vec::new();
         let mut index: u32 = 0;
         loop {
@@ -129,10 +131,11 @@ pub mod api {
                     Some(data_buf.as_mut_ptr()),
                     Some(&mut data_size),
                 );
-                if status == Err(WIN32_ERROR(259).into()) {
+                if status == WIN32_ERROR(259) {
+                    // ERROR_NO_MORE_ITEMS
                     break;
                 }
-                if status.is_err() {
+                if status != WIN32_ERROR(0) {
                     return Err(format!("RegEnumValueW({}): {:?}", index, status));
                 }
             }
@@ -148,7 +151,7 @@ pub mod api {
     /// Close an opened registry key.
     pub fn reg_close_key(hkey: HKEY) {
         unsafe {
-            let _ = RegCloseKey(hkey);
+            let _status: WIN32_ERROR = RegCloseKey(hkey);
         }
     }
 }

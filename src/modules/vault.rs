@@ -220,6 +220,7 @@ fn cmd_list(_args: &[String]) -> Status {
     ) -> i32;
     type FnVaultCloseVault = unsafe extern "system" fn(vault: *mut HVAULT) -> i32;
     type FnVaultFree = unsafe extern "system" fn(memory: *mut core::ffi::c_void) -> i32;
+    #[allow(dead_code)]
     type FnVaultGetItem = unsafe extern "system" fn(
         vault: HVAULT,
         schema_id: *const GUID,

@@ -4,8 +4,6 @@
 //! services via the SCM API (`OpenSCManagerW`, `EnumServicesStatusExW`, etc.).
 
 use crate::module::{Command, Module, Status};
-#[cfg(windows)]
-use crate::display::find_named_arg;
 
 pub static MODULE: Module = Module {
     short_name: "service",
@@ -38,7 +36,6 @@ static COMMANDS: [Command; 9] = [
 #[cfg(windows)]
 mod win {
     use windows::Win32::System::Services::*;
-    use windows::Win32::Foundation::*;
     use windows::core::*;
     use crate::module::Status;
     use crate::display::find_named_arg;
@@ -106,10 +103,10 @@ mod win {
     pub fn control_service(args: &[String], control: u32, control_name: &str) -> Status {
         with_service(
             args,
-            SC_MANAGER_CONNECT.0,
-            SERVICE_STOP.0
-                | SERVICE_PAUSE_CONTINUE.0
-                | SERVICE_INTERROGATE.0
+            SC_MANAGER_CONNECT,
+            SERVICE_STOP
+                | SERVICE_PAUSE_CONTINUE
+                | SERVICE_INTERROGATE
                 | SERVICE_USER_DEFINED_CONTROL,
             |svc| unsafe {
                 let mut status = SERVICE_STATUS::default();
@@ -130,8 +127,8 @@ mod win {
     pub fn cmd_start(args: &[String]) -> Status {
         with_service(
             args,
-            SC_MANAGER_CONNECT.0,
-            SERVICE_START.0,
+            SC_MANAGER_CONNECT,
+            SERVICE_START,
             |svc| unsafe {
                 match StartServiceW(svc, None) {
                     Ok(()) => {
@@ -148,30 +145,30 @@ mod win {
     }
 
     pub fn cmd_stop(args: &[String]) -> Status {
-        control_service(args, SERVICE_CONTROL_STOP.0, "Stop")
+        control_service(args, SERVICE_CONTROL_STOP, "Stop")
     }
 
     pub fn cmd_suspend(args: &[String]) -> Status {
-        control_service(args, SERVICE_CONTROL_PAUSE.0, "Suspend")
+        control_service(args, SERVICE_CONTROL_PAUSE, "Suspend")
     }
 
     pub fn cmd_resume(args: &[String]) -> Status {
-        control_service(args, SERVICE_CONTROL_CONTINUE.0, "Resume")
+        control_service(args, SERVICE_CONTROL_CONTINUE, "Resume")
     }
 
     pub fn cmd_preshutdown(args: &[String]) -> Status {
-        control_service(args, SERVICE_CONTROL_PRESHUTDOWN.0, "Preshutdown")
+        control_service(args, SERVICE_CONTROL_PRESHUTDOWN, "Preshutdown")
     }
 
     pub fn cmd_shutdown(args: &[String]) -> Status {
-        control_service(args, SERVICE_CONTROL_SHUTDOWN.0, "Shutdown")
+        control_service(args, SERVICE_CONTROL_SHUTDOWN, "Shutdown")
     }
 
     pub fn cmd_remove(args: &[String]) -> Status {
         with_service(
             args,
-            SC_MANAGER_CONNECT.0,
-            windows::Win32::System::Services::DELETE.0,
+            SC_MANAGER_CONNECT,
+            0x00010000u32, // DELETE standard access right
             |svc| unsafe {
                 match DeleteService(svc) {
                     Ok(()) => {
@@ -189,7 +186,7 @@ mod win {
 
     pub fn cmd_list(_args: &[String]) -> Status {
         unsafe {
-            let scm = match open_scm(SC_MANAGER_CONNECT.0 | SC_MANAGER_ENUMERATE_SERVICE.0) {
+            let scm = match open_scm(SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE) {
                 Ok(h) => h,
                 Err(e) => {
                     eprintln!("ERROR: OpenSCManager: {}", e);

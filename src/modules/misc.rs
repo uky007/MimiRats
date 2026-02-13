@@ -41,7 +41,7 @@ static COMMANDS: [Command; 8] = [
 #[cfg(windows)]
 fn reg_set_dword(hive_name: &str, subkey: &str, value_name: &str, data: u32) -> Result<(), String> {
     use windows::Win32::System::Registry::*;
-    use windows::Win32::Foundation::*;
+    use windows::Win32::Foundation::ERROR_SUCCESS;
     use windows::core::PCWSTR;
 
     let hive = match hive_name {
@@ -56,7 +56,7 @@ fn reg_set_dword(hive_name: &str, subkey: &str, value_name: &str, data: u32) -> 
     unsafe {
         let mut key = HKEY::default();
         // Open with write access; create the key path if it doesn't exist.
-        RegCreateKeyExW(
+        let status = RegCreateKeyExW(
             hive,
             PCWSTR(subkey_wide.as_ptr()),
             0,
@@ -66,11 +66,13 @@ fn reg_set_dword(hive_name: &str, subkey: &str, value_name: &str, data: u32) -> 
             None,
             &mut key,
             None,
-        )
-        .map_err(|e| format!("RegCreateKeyExW({}\\{}): {}", hive_name, subkey, e))?;
+        );
+        if status != ERROR_SUCCESS {
+            return Err(format!("RegCreateKeyExW({}\\{}): {:?}", hive_name, subkey, status));
+        }
 
         let data_bytes = data.to_le_bytes();
-        let result = RegSetValueExW(
+        let status = RegSetValueExW(
             key,
             PCWSTR(value_wide.as_ptr()),
             0,
@@ -80,7 +82,9 @@ fn reg_set_dword(hive_name: &str, subkey: &str, value_name: &str, data: u32) -> 
 
         let _ = RegCloseKey(key);
 
-        result.map_err(|e| format!("RegSetValueExW({}, {}): {}", subkey, value_name, e))?;
+        if status != ERROR_SUCCESS {
+            return Err(format!("RegSetValueExW({}, {}): {:?}", subkey, value_name, status));
+        }
     }
 
     Ok(())

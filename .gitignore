@@ -1,1 +1,3 @@
 /target
+tests/test_results.txt
+tests/*.txt

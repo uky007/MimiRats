@@ -34,7 +34,7 @@ function Run-MimiRats {
 
 function Run-MimiRats-Cmdline {
     param([string]$Cmd)
-    $result = & $Binary $Cmd 2>&1
+    $result = "exit" | & $Binary $Cmd 2>&1
     $output = $result -join "`n"
     $output | Tee-Object -FilePath $ResultFile -Append
     return $output

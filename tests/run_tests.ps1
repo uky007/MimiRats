@@ -1,13 +1,14 @@
 # MimiRats Functional Test Script
-# Usage: powershell -ExecutionPolicy Bypass -File tests\run_tests.ps1
-# Output: tests\test_results.txt
+# Usage: Place MimiRats.exe and this script in the same directory, then run:
+#   powershell -ExecutionPolicy Bypass -File run_tests.ps1
+# Output: test_results.txt (in current directory)
 #
 # Run WITHOUT admin  -> basic + crypto tests
 # Run WITH admin     -> basic + crypto + privilege + service + credential tests
 
 $ErrorActionPreference = "Continue"
-$Binary = "$PSScriptRoot\..\target\x86_64-pc-windows-gnu\debug\MimiRats.exe"
-$ResultFile = "$PSScriptRoot\test_results.txt"
+$Binary = ".\MimiRats.exe"
+$ResultFile = ".\test_results.txt"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -67,72 +68,51 @@ function Is-Admin {
 
 # Check binary exists
 if (-not (Test-Path $Binary)) {
-    "ERROR: Binary not found at $Binary" | Tee-Object -FilePath $ResultFile -Append
-    "Try: cargo build" | Tee-Object -FilePath $ResultFile -Append
-    # Also check release path
-    $RelBinary = "$PSScriptRoot\..\target\x86_64-pc-windows-gnu\release\MimiRats.exe"
-    if (Test-Path $RelBinary) {
-        "Found release binary at: $RelBinary" | Tee-Object -FilePath $ResultFile -Append
-        $Binary = $RelBinary
-    } else {
-        exit 1
-    }
+    "ERROR: MimiRats.exe not found in current directory" | Tee-Object -FilePath $ResultFile -Append
+    "Place MimiRats.exe in the same directory as this script" | Tee-Object -FilePath $ResultFile -Append
+    exit 1
 }
 
 "Binary size: $((Get-Item $Binary).Length) bytes" | Tee-Object -FilePath $ResultFile -Append
 "" | Tee-Object -FilePath $ResultFile -Append
 
 # ===================================================================
-# TEST 1: Build verification (cargo test)
+# TEST 1: Banner and REPL
 # ===================================================================
-Write-Section "1. Unit Tests (cargo test)"
+Write-Section "1. Banner and REPL"
 
-$testOutput = & cargo test --manifest-path "$PSScriptRoot\..\Cargo.toml" 2>&1
-$testOutput -join "`n" | Tee-Object -FilePath $ResultFile -Append
-
-if ($testOutput -match "test result: ok") {
-    "  [PASS] Unit tests" | Tee-Object -FilePath $ResultFile -Append
-} else {
-    "  [FAIL] Unit tests" | Tee-Object -FilePath $ResultFile -Append
-}
-
-# ===================================================================
-# TEST 2: Banner and REPL
-# ===================================================================
-Write-Section "2. Banner and REPL"
-
-Write-SubSection "2a. Banner display"
+Write-SubSection "1a. Banner display"
 $out = Run-MimiRats @()
 Check-Result $out "MimiRats" "Banner contains 'MimiRats'"
 Check-Result $out "Rust edition" "Banner contains 'Rust edition'"
 Check-Result $out "mimrats #" "REPL prompt displayed"
 
-Write-SubSection "2b. Command-line mode"
+Write-SubSection "1b. Command-line mode"
 $out = Run-MimiRats-Cmdline "version"
 Check-Result $out "MimiRats" "Cmdline mode works"
 
 # ===================================================================
-# TEST 3: Standard module
+# TEST 2: Standard module
 # ===================================================================
-Write-Section "3. Standard Module"
+Write-Section "2. Standard Module"
 
-Write-SubSection "3a. version"
+Write-SubSection "2a. version"
 $out = Run-MimiRats @("version")
 Check-Result $out "MimiRats" "version command"
 
-Write-SubSection "3b. coffee"
+Write-SubSection "2b. coffee"
 $out = Run-MimiRats @("coffee")
 Check-Result $out "Coffee" "coffee command"
 
-Write-SubSection "3c. answer"
+Write-SubSection "2c. answer"
 $out = Run-MimiRats @("answer")
 Check-Result $out "42" "answer command"
 
-Write-SubSection "3d. cd"
+Write-SubSection "2d. cd"
 $out = Run-MimiRats @("cd")
 Check-Result $out ":\" "cd shows current directory"
 
-Write-SubSection "3e. module listing"
+Write-SubSection "2e. module listing"
 $out = Run-MimiRats @("unknownmodule::")
 Check-Result $out "standard" "Module list shows standard"
 Check-Result $out "sekurlsa" "Module list shows sekurlsa"
@@ -140,94 +120,94 @@ Check-Result $out "lsadump" "Module list shows lsadump"
 Check-Result $out "kerberos" "Module list shows kerberos"
 
 # ===================================================================
-# TEST 4: Crypto module (cross-platform, fully implemented)
+# TEST 3: Crypto module (cross-platform, fully implemented)
 # ===================================================================
-Write-Section "4. Crypto Module"
+Write-Section "3. Crypto Module"
 
-Write-SubSection "4a. crypto::hash - empty password"
+Write-SubSection "3a. crypto::hash - empty password"
 $out = Run-MimiRats @("crypto::hash /password:")
 Check-Result $out "31d6cfe0d16ae931b73c59d7e0c089c0" "NTLM of empty password"
 Check-Result $out "aad3b435b51404eeaad3b435b51404ee" "LM of empty password"
 
-Write-SubSection "4b. crypto::hash - 'mimikatz'"
+Write-SubSection "3b. crypto::hash - 'mimikatz'"
 $out = Run-MimiRats @("crypto::hash /password:mimikatz")
 Check-Result $out "60ba4fcadc466c7a033c178194c03df6" "NTLM of 'mimikatz'"
 Check-Result $out "MD5" "MD5 hash displayed"
 Check-Result $out "SHA1" "SHA1 hash displayed"
 Check-Result $out "SHA256" "SHA256 hash displayed"
 
-Write-SubSection "4c. crypto::hash - with DCC"
+Write-SubSection "3c. crypto::hash - with DCC"
 $out = Run-MimiRats @("crypto::hash /password:Password /user:admin")
 Check-Result $out "NTLM" "NTLM displayed"
 Check-Result $out "DCC1" "DCC1 computed"
 Check-Result $out "DCC2" "DCC2 computed"
 
-Write-SubSection "4d. crypto::hash - Unicode"
+Write-SubSection "3d. crypto::hash - special chars"
 $out = Run-MimiRats @("crypto::hash /password:P@ssw0rd!")
 Check-Result $out "NTLM" "NTLM for special chars"
 
 # ===================================================================
-# TEST 5: Kerberos module (hash - cross-platform)
+# TEST 4: Kerberos module (hash - cross-platform)
 # ===================================================================
-Write-Section "5. Kerberos Module"
+Write-Section "4. Kerberos Module"
 
-Write-SubSection "5a. kerberos::hash"
+Write-SubSection "4a. kerberos::hash"
 $out = Run-MimiRats @("kerberos::hash /password:Password /user:admin /domain:CONTOSO.LOCAL")
 Check-Result $out "rc4_hmac" "RC4-HMAC key"
 Check-Result $out "aes256" "AES256 key"
 Check-Result $out "aes128" "AES128 key"
 
 # ===================================================================
-# TEST 6: Module help display
+# TEST 5: Module help display
 # ===================================================================
-Write-Section "6. Module Help"
+Write-Section "5. Module Help"
 
-Write-SubSection "6a. sekurlsa::"
+Write-SubSection "5a. sekurlsa::"
 $out = Run-MimiRats @("sekurlsa::")
 Check-Result $out "logonPasswords" "sekurlsa help shows logonPasswords"
 Check-Result $out "msv" "sekurlsa help shows msv"
 
-Write-SubSection "6b. lsadump::"
+Write-SubSection "5b. lsadump::"
 $out = Run-MimiRats @("lsadump::")
 Check-Result $out "sam" "lsadump help shows sam"
 Check-Result $out "secrets" "lsadump help shows secrets"
 Check-Result $out "cache" "lsadump help shows cache"
 Check-Result $out "dcsync" "lsadump help shows dcsync"
 
-Write-SubSection "6c. privilege::"
+Write-SubSection "5c. privilege::"
 $out = Run-MimiRats @("privilege::")
 Check-Result $out "debug" "privilege help shows debug"
 
-Write-SubSection "6d. crypto::"
+Write-SubSection "5d. crypto::"
 $out = Run-MimiRats @("crypto::")
 Check-Result $out "hash" "crypto help shows hash"
 Check-Result $out "providers" "crypto help shows providers"
 Check-Result $out "certificates" "crypto help shows certificates"
 
-Write-SubSection "6e. process::"
+Write-SubSection "5e. process::"
 $out = Run-MimiRats @("process::")
 Check-Result $out "list" "process help shows list"
 
-Write-SubSection "6f. dpapi::"
+Write-SubSection "5f. dpapi::"
 $out = Run-MimiRats @("dpapi::")
 Check-Result $out "masterkeys" "dpapi help shows masterkeys"
 
 # ===================================================================
-# TEST 7: Process module
+# TEST 6: Process module
 # ===================================================================
-Write-Section "7. Process Module"
+Write-Section "6. Process Module"
 
-Write-SubSection "7a. process::list"
+Write-SubSection "6a. process::list"
 $out = Run-MimiRats @("process::list")
 Check-Result $out "PID" "Process list header"
 
 # ===================================================================
-# TEST 8: Privilege tests (admin required)
+# TEST 7: Privilege tests (admin required)
 # ===================================================================
-Write-Section "8. Privilege Module (admin required)"
+Write-Section "7. Privilege Module (admin required)"
 
 if (Is-Admin) {
-    Write-SubSection "8a. privilege::debug"
+    Write-SubSection "7a. privilege::debug"
     $out = Run-MimiRats @("privilege::debug")
     Check-Result $out "OK" "SeDebugPrivilege enabled"
 } else {
@@ -235,16 +215,16 @@ if (Is-Admin) {
 }
 
 # ===================================================================
-# TEST 9: Service module (admin required for most)
+# TEST 8: Service module (admin required for most)
 # ===================================================================
-Write-Section "9. Service Module"
+Write-Section "8. Service Module"
 
-Write-SubSection "9a. service::me"
+Write-SubSection "8a. service::me"
 $out = Run-MimiRats @("service::me")
 Check-Result $out "PID" "service::me shows PID"
 
 if (Is-Admin) {
-    Write-SubSection "9b. service::list"
+    Write-SubSection "8b. service::list"
     $out = Run-MimiRats @("service::list")
     Check-Result $out "RUNNING" "service::list shows running services"
 } else {
@@ -252,13 +232,12 @@ if (Is-Admin) {
 }
 
 # ===================================================================
-# TEST 10: Vault / Credential module (admin preferred)
+# TEST 9: Vault / Credential module (admin preferred)
 # ===================================================================
-Write-Section "10. Vault Module"
+Write-Section "9. Vault Module"
 
-Write-SubSection "10a. vault::cred"
+Write-SubSection "9a. vault::cred"
 $out = Run-MimiRats @("vault::cred")
-# May succeed or fail depending on permissions, both are valid
 if ($out -match "TargetName|ERROR|credentials") {
     "  [PASS] vault::cred executed (result depends on permissions)" | Tee-Object -FilePath $ResultFile -Append
 } else {
@@ -266,15 +245,15 @@ if ($out -match "TargetName|ERROR|credentials") {
 }
 
 # ===================================================================
-# TEST 11: Crypto providers (Windows-specific)
+# TEST 10: Crypto providers (Windows-specific)
 # ===================================================================
-Write-Section "11. Crypto Providers"
+Write-Section "10. Crypto Providers"
 
-Write-SubSection "11a. crypto::providers"
+Write-SubSection "10a. crypto::providers"
 $out = Run-MimiRats @("crypto::providers")
 Check-Result $out "provider" "crypto::providers shows output"
 
-Write-SubSection "11b. crypto::stores"
+Write-SubSection "10b. crypto::stores"
 $out = Run-MimiRats @("crypto::stores")
 if ($out -match "My|Root|CA|store") {
     "  [PASS] crypto::stores shows certificate stores" | Tee-Object -FilePath $ResultFile -Append
@@ -283,11 +262,11 @@ if ($out -match "My|Root|CA|store") {
 }
 
 # ===================================================================
-# TEST 12: SID module
+# TEST 11: SID module
 # ===================================================================
-Write-Section "12. SID Module"
+Write-Section "11. SID Module"
 
-Write-SubSection "12a. sid::lookup by name"
+Write-SubSection "11a. sid::lookup by name"
 $out = Run-MimiRats @("sid::lookup /name:Administrator")
 if ($out -match "S-1-5|SID|User") {
     "  [PASS] sid::lookup resolves Administrator" | Tee-Object -FilePath $ResultFile -Append
@@ -296,47 +275,47 @@ if ($out -match "S-1-5|SID|User") {
 }
 
 # ===================================================================
-# TEST 13: Offline lsadump (error handling without hive files)
+# TEST 12: Offline lsadump (error handling without hive files)
 # ===================================================================
-Write-Section "13. LSAdump Error Handling"
+Write-Section "12. LSAdump Error Handling"
 
-Write-SubSection "13a. lsadump::sam without args"
+Write-SubSection "12a. lsadump::sam without args"
 $out = Run-MimiRats @("lsadump::sam")
 Check-Result $out "system" "lsadump::sam mentions /system: argument"
 
-Write-SubSection "13b. lsadump::secrets without args"
+Write-SubSection "12b. lsadump::secrets without args"
 $out = Run-MimiRats @("lsadump::secrets")
 Check-Result $out "system" "lsadump::secrets mentions /system: argument"
 
-Write-SubSection "13c. lsadump::cache without args"
+Write-SubSection "12c. lsadump::cache without args"
 $out = Run-MimiRats @("lsadump::cache")
 Check-Result $out "system" "lsadump::cache mentions /system: argument"
 
 # ===================================================================
-# TEST 14: Offline lsadump with exported hives (admin required)
+# TEST 13: Offline lsadump with exported hives (admin required)
 # ===================================================================
-Write-Section "14. LSAdump with Exported Hives (admin required)"
+Write-Section "13. LSAdump with Exported Hives (admin required)"
 
 if (Is-Admin) {
-    $hivedir = "$PSScriptRoot\hives"
+    $hivedir = ".\hives"
     New-Item -ItemType Directory -Force -Path $hivedir | Out-Null
 
-    Write-SubSection "14a. Exporting registry hives"
+    Write-SubSection "13a. Exporting registry hives"
     & reg save HKLM\SYSTEM "$hivedir\SYSTEM" /y 2>&1 | Tee-Object -FilePath $ResultFile -Append
     & reg save HKLM\SAM "$hivedir\SAM" /y 2>&1 | Tee-Object -FilePath $ResultFile -Append
     & reg save HKLM\SECURITY "$hivedir\SECURITY" /y 2>&1 | Tee-Object -FilePath $ResultFile -Append
 
     if ((Test-Path "$hivedir\SYSTEM") -and (Test-Path "$hivedir\SAM")) {
-        Write-SubSection "14b. lsadump::sam"
+        Write-SubSection "13b. lsadump::sam"
         $out = Run-MimiRats @("lsadump::sam /system:$hivedir\SYSTEM /sam:$hivedir\SAM")
         Check-Result $out "SysKey" "SysKey extracted"
         Check-Result $out "RID" "User RIDs listed"
 
-        Write-SubSection "14c. lsadump::secrets"
+        Write-SubSection "13c. lsadump::secrets"
         $out = Run-MimiRats @("lsadump::secrets /system:$hivedir\SYSTEM /security:$hivedir\SECURITY")
         Check-Result $out "SysKey" "SysKey extracted for secrets"
 
-        Write-SubSection "14d. lsadump::cache"
+        Write-SubSection "13d. lsadump::cache"
         $out = Run-MimiRats @("lsadump::cache /system:$hivedir\SYSTEM /security:$hivedir\SECURITY")
         Check-Result $out "SysKey" "SysKey extracted for cache"
     } else {
@@ -344,7 +323,7 @@ if (Is-Admin) {
     }
 
     # Cleanup hive files
-    Write-SubSection "14e. Cleanup"
+    Write-SubSection "13e. Cleanup"
     Remove-Item -Force "$hivedir\SYSTEM" -ErrorAction SilentlyContinue
     Remove-Item -Force "$hivedir\SAM" -ErrorAction SilentlyContinue
     Remove-Item -Force "$hivedir\SECURITY" -ErrorAction SilentlyContinue
@@ -355,12 +334,12 @@ if (Is-Admin) {
 }
 
 # ===================================================================
-# TEST 15: Event module (admin required)
+# TEST 14: Event module (admin required)
 # ===================================================================
-Write-Section "15. Event Module"
+Write-Section "14. Event Module"
 
 if (Is-Admin) {
-    Write-SubSection "15a. event::drop (stub)"
+    Write-SubSection "14a. event::drop (stub)"
     $out = Run-MimiRats @("event::drop")
     Check-Result $out "not yet implemented" "event::drop shows stub message"
 } else {
@@ -368,11 +347,11 @@ if (Is-Admin) {
 }
 
 # ===================================================================
-# TEST 16: Net module
+# TEST 15: Net module
 # ===================================================================
-Write-Section "16. Net Module"
+Write-Section "15. Net Module"
 
-Write-SubSection "16a. net::tod"
+Write-SubSection "15a. net::tod"
 $out = Run-MimiRats @("net::tod")
 if ($out -match "time|date|uptime|ERROR") {
     "  [PASS] net::tod executed" | Tee-Object -FilePath $ResultFile -Append

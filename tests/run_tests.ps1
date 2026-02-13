@@ -16,11 +16,21 @@ $ResultFile = ".\test_results.txt"
 
 function Write-Section($title) {
     $sep = "=" * 72
-    "$sep`n[$title]`n$sep" | Tee-Object -FilePath $ResultFile -Append
+    "$sep`n[$title]`n$sep" | Out-Log
 }
 
 function Write-SubSection($title) {
-    "`n--- $title ---" | Tee-Object -FilePath $ResultFile -Append
+    "`n--- $title ---" | Out-Log
+}
+
+function Out-Log {
+    param([Parameter(ValueFromPipeline=$true)][string]$Text)
+    process {
+        if ($Text -ne $null) {
+            Write-Host $Text
+            [System.IO.File]::AppendAllText($ResultFile, "$Text`r`n")
+        }
+    }
 }
 
 function Run-MimiRats {
@@ -28,23 +38,23 @@ function Run-MimiRats {
     $input_text = ($Commands + "exit") -join "`n"
     $result = $input_text | & $Binary 2>&1
     $output = $result -join "`n"
-    $output | Tee-Object -FilePath $ResultFile -Append
+    $output | Out-Log
     return $output
 }
 
 function Run-MimiRats-Cmdline {
     param([string]$Cmd)
-    $result = "exit" | & $Binary $Cmd 2>&1
+    $result = & $Binary $Cmd "exit" 2>&1
     $output = $result -join "`n"
-    $output | Tee-Object -FilePath $ResultFile -Append
+    $output | Out-Log
     return $output
 }
 
 function Check-Result($output, $expected, $testname) {
     if ($output -match [regex]::Escape($expected)) {
-        "  [PASS] $testname" | Tee-Object -FilePath $ResultFile -Append
+        "  [PASS] $testname" | Out-Log
     } else {
-        "  [FAIL] $testname (expected: '$expected')" | Tee-Object -FilePath $ResultFile -Append
+        "  [FAIL] $testname (expected: '$expected')" | Out-Log
     }
 }
 
@@ -58,23 +68,23 @@ function Is-Admin {
 # Init
 # ---------------------------------------------------------------------------
 
-"" | Set-Content $ResultFile
-"MimiRats Functional Test Report" | Tee-Object -FilePath $ResultFile -Append
-"Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Tee-Object -FilePath $ResultFile -Append
-"Host: $env:COMPUTERNAME" | Tee-Object -FilePath $ResultFile -Append
-"OS:   $([System.Environment]::OSVersion.VersionString)" | Tee-Object -FilePath $ResultFile -Append
-"Admin: $(Is-Admin)" | Tee-Object -FilePath $ResultFile -Append
-"Binary: $Binary" | Tee-Object -FilePath $ResultFile -Append
+[System.IO.File]::WriteAllText($ResultFile, "")
+"MimiRats Functional Test Report" | Out-Log
+"Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-Log
+"Host: $env:COMPUTERNAME" | Out-Log
+"OS:   $([System.Environment]::OSVersion.VersionString)" | Out-Log
+"Admin: $(Is-Admin)" | Out-Log
+"Binary: $Binary" | Out-Log
 
 # Check binary exists
 if (-not (Test-Path $Binary)) {
-    "ERROR: MimiRats.exe not found in current directory" | Tee-Object -FilePath $ResultFile -Append
-    "Place MimiRats.exe in the same directory as this script" | Tee-Object -FilePath $ResultFile -Append
+    "ERROR: MimiRats.exe not found in current directory" | Out-Log
+    "Place MimiRats.exe in the same directory as this script" | Out-Log
     exit 1
 }
 
-"Binary size: $((Get-Item $Binary).Length) bytes" | Tee-Object -FilePath $ResultFile -Append
-"" | Tee-Object -FilePath $ResultFile -Append
+"Binary size: $((Get-Item $Binary).Length) bytes" | Out-Log
+"" | Out-Log
 
 # ===================================================================
 # TEST 1: Banner and REPL
@@ -211,7 +221,7 @@ if (Is-Admin) {
     $out = Run-MimiRats @("privilege::debug")
     Check-Result $out "OK" "SeDebugPrivilege enabled"
 } else {
-    "  [SKIP] Not running as administrator" | Tee-Object -FilePath $ResultFile -Append
+    "  [SKIP] Not running as administrator" | Out-Log
 }
 
 # ===================================================================
@@ -228,7 +238,7 @@ if (Is-Admin) {
     $out = Run-MimiRats @("service::list")
     Check-Result $out "RUNNING" "service::list shows running services"
 } else {
-    "  [SKIP] service::list requires admin" | Tee-Object -FilePath $ResultFile -Append
+    "  [SKIP] service::list requires admin" | Out-Log
 }
 
 # ===================================================================
@@ -239,9 +249,9 @@ Write-Section "9. Vault Module"
 Write-SubSection "9a. vault::cred"
 $out = Run-MimiRats @("vault::cred")
 if ($out -match "TargetName|ERROR|credentials") {
-    "  [PASS] vault::cred executed (result depends on permissions)" | Tee-Object -FilePath $ResultFile -Append
+    "  [PASS] vault::cred executed (result depends on permissions)" | Out-Log
 } else {
-    "  [FAIL] vault::cred produced no output" | Tee-Object -FilePath $ResultFile -Append
+    "  [FAIL] vault::cred produced no output" | Out-Log
 }
 
 # ===================================================================
@@ -256,9 +266,9 @@ Check-Result $out "provider" "crypto::providers shows output"
 Write-SubSection "10b. crypto::stores"
 $out = Run-MimiRats @("crypto::stores")
 if ($out -match "My|Root|CA|store") {
-    "  [PASS] crypto::stores shows certificate stores" | Tee-Object -FilePath $ResultFile -Append
+    "  [PASS] crypto::stores shows certificate stores" | Out-Log
 } else {
-    "  [INFO] crypto::stores output (check manually)" | Tee-Object -FilePath $ResultFile -Append
+    "  [INFO] crypto::stores output (check manually)" | Out-Log
 }
 
 # ===================================================================
@@ -269,9 +279,9 @@ Write-Section "11. SID Module"
 Write-SubSection "11a. sid::lookup by name"
 $out = Run-MimiRats @("sid::lookup /name:Administrator")
 if ($out -match "S-1-5|SID|User") {
-    "  [PASS] sid::lookup resolves Administrator" | Tee-Object -FilePath $ResultFile -Append
+    "  [PASS] sid::lookup resolves Administrator" | Out-Log
 } else {
-    "  [INFO] sid::lookup output (check manually)" | Tee-Object -FilePath $ResultFile -Append
+    "  [INFO] sid::lookup output (check manually)" | Out-Log
 }
 
 # ===================================================================
@@ -301,9 +311,9 @@ if (Is-Admin) {
     New-Item -ItemType Directory -Force -Path $hivedir | Out-Null
 
     Write-SubSection "13a. Exporting registry hives"
-    & reg save HKLM\SYSTEM "$hivedir\SYSTEM" /y 2>&1 | Tee-Object -FilePath $ResultFile -Append
-    & reg save HKLM\SAM "$hivedir\SAM" /y 2>&1 | Tee-Object -FilePath $ResultFile -Append
-    & reg save HKLM\SECURITY "$hivedir\SECURITY" /y 2>&1 | Tee-Object -FilePath $ResultFile -Append
+    & reg save HKLM\SYSTEM "$hivedir\SYSTEM" /y 2>&1 | Out-Log
+    & reg save HKLM\SAM "$hivedir\SAM" /y 2>&1 | Out-Log
+    & reg save HKLM\SECURITY "$hivedir\SECURITY" /y 2>&1 | Out-Log
 
     if ((Test-Path "$hivedir\SYSTEM") -and (Test-Path "$hivedir\SAM")) {
         Write-SubSection "13b. lsadump::sam"
@@ -319,7 +329,7 @@ if (Is-Admin) {
         $out = Run-MimiRats @("lsadump::cache /system:$hivedir\SYSTEM /security:$hivedir\SECURITY")
         Check-Result $out "SysKey" "SysKey extracted for cache"
     } else {
-        "  [FAIL] Could not export registry hives" | Tee-Object -FilePath $ResultFile -Append
+        "  [FAIL] Could not export registry hives" | Out-Log
     }
 
     # Cleanup hive files
@@ -328,9 +338,9 @@ if (Is-Admin) {
     Remove-Item -Force "$hivedir\SAM" -ErrorAction SilentlyContinue
     Remove-Item -Force "$hivedir\SECURITY" -ErrorAction SilentlyContinue
     Remove-Item -Force $hivedir -ErrorAction SilentlyContinue
-    "  Hive files cleaned up" | Tee-Object -FilePath $ResultFile -Append
+    "  Hive files cleaned up" | Out-Log
 } else {
-    "  [SKIP] Requires admin to export registry hives" | Tee-Object -FilePath $ResultFile -Append
+    "  [SKIP] Requires admin to export registry hives" | Out-Log
 }
 
 # ===================================================================
@@ -343,7 +353,7 @@ if (Is-Admin) {
     $out = Run-MimiRats @("event::drop")
     Check-Result $out "not yet implemented" "event::drop shows stub message"
 } else {
-    "  [SKIP] Requires admin" | Tee-Object -FilePath $ResultFile -Append
+    "  [SKIP] Requires admin" | Out-Log
 }
 
 # ===================================================================
@@ -354,9 +364,9 @@ Write-Section "15. Net Module"
 Write-SubSection "15a. net::tod"
 $out = Run-MimiRats @("net::tod")
 if ($out -match "time|date|uptime|ERROR") {
-    "  [PASS] net::tod executed" | Tee-Object -FilePath $ResultFile -Append
+    "  [PASS] net::tod executed" | Out-Log
 } else {
-    "  [INFO] net::tod output (check manually)" | Tee-Object -FilePath $ResultFile -Append
+    "  [INFO] net::tod output (check manually)" | Out-Log
 }
 
 # ===================================================================
@@ -370,6 +380,6 @@ $fail  = (Select-String -Path $ResultFile -Pattern "\[FAIL\]").Count
 $skip  = (Select-String -Path $ResultFile -Pattern "\[SKIP\]").Count
 $info  = (Select-String -Path $ResultFile -Pattern "\[INFO\]").Count
 
-"Total: $total  |  PASS: $pass  |  FAIL: $fail  |  SKIP: $skip  |  INFO: $info" | Tee-Object -FilePath $ResultFile -Append
-"" | Tee-Object -FilePath $ResultFile -Append
-"Results saved to: $ResultFile" | Tee-Object -FilePath $ResultFile -Append
+"Total: $total  |  PASS: $pass  |  FAIL: $fail  |  SKIP: $skip  |  INFO: $info" | Out-Log
+"" | Out-Log
+"Results saved to: $ResultFile" | Out-Log

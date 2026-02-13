@@ -4,8 +4,8 @@
 
 /// MimiRats version string.
 pub const VERSION: &str = "0.1.0";
-/// Build codename (matches mimikatz tradition).
-pub const CODENAME: &str = "A La Vie, A L'Amour";
+/// Build codename.
+pub const CODENAME: &str = "Rewritten in Rust";
 
 /// Target architecture identifier.
 #[cfg(target_arch = "x86_64")]
@@ -25,8 +25,8 @@ pub fn print_banner() {
     println!();
     println!("  .#####.   MimiRats {} ({}) - Rust edition", VERSION, ARCH);
     println!(" .## ^ ##.  \"{}\"", CODENAME);
-    println!(" ## / \\ ##  A Rust reimplementation of mimikatz");
-    println!(" ## \\ / ##       > Original by Benjamin DELPY `gentilkiwi`");
-    println!(" '## v ##'       > https://blog.gentilkiwi.com/mimikatz");
-    println!("  '#####'        (oe.eo)");
+    println!(" ## / \\ ##  Windows credential toolkit");
+    println!(" ## \\ / ##");
+    println!(" '## v ##'");
+    println!("  '#####'");
 }

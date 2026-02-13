@@ -92,6 +92,7 @@ fn cmd_coffee(_args: &[String]) -> Status {
     println!("  |      |]");
     println!("  \\      /");
     println!("   `----'");
+    println!("    Coffee !");
     Status::Success
 }
 

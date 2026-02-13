@@ -162,23 +162,23 @@ pub mod api {
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::Cursor;
 
-/// Magic bytes at the start of a registry hive file (`regf`).
-const REGF_MAGIC: u32 = 0x7265_6766;
+/// Magic bytes at the start of a registry hive file (`regf`), as read by read_u32_le.
+const REGF_MAGIC: u32 = u32::from_le_bytes(*b"regf");
 
 /// Base file offset where hive bins begin.
 const HBIN_BASE: u32 = 0x1000;
 
-/// NK (key node) cell signature.
-const NK_SIGNATURE: u16 = 0x6E6B;
+/// NK (key node) cell signature, as read by read_u16_le.
+const NK_SIGNATURE: u16 = u16::from_le_bytes(*b"nk");
 
-/// VK (value key) cell signature.
-const VK_SIGNATURE: u16 = 0x766B;
+/// VK (value key) cell signature, as read by read_u16_le.
+const VK_SIGNATURE: u16 = u16::from_le_bytes(*b"vk");
 
-/// Subkey list signatures.
-const LF_SIGNATURE: u16 = 0x666C;
-const LH_SIGNATURE: u16 = 0x686C;
-const LI_SIGNATURE: u16 = 0x696C;
-const RI_SIGNATURE: u16 = 0x6972;
+/// Subkey list signatures, as read by read_u16_le.
+const LF_SIGNATURE: u16 = u16::from_le_bytes(*b"lf");
+const LH_SIGNATURE: u16 = u16::from_le_bytes(*b"lh");
+const LI_SIGNATURE: u16 = u16::from_le_bytes(*b"li");
+const RI_SIGNATURE: u16 = u16::from_le_bytes(*b"ri");
 
 /// NK flag: key name is ASCII (compressed).
 const NK_FLAG_COMP_NAME: u16 = 0x0020;

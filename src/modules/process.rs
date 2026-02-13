@@ -65,6 +65,7 @@ fn cmd_list(_args: &[String]) -> Status {
         };
 
         if Process32FirstW(snapshot, &mut entry).is_ok() {
+            println!("{}\t{}", "PID", "Name");
             loop {
                 let name = String::from_utf16_lossy(
                     &entry.szExeFile[..entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len())],
